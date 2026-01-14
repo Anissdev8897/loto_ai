@@ -1,0 +1,9 @@
+2025-11-16 18:13:07,482 - INFO - Démarrage du scraping des tirages du Loto...
+2025-11-16 18:13:09,483 - INFO - Récupération des données depuis: http://loto.akroweb.fr/loto-historique-tirages/
+2025-11-16 18:13:29,619 - INFO - Nombre de lignes trouvées: 2746
+2025-11-16 18:13:30,481 - INFO - Extraction réussie: 2746 tirages récupérés.
+2025-11-16 18:13:30,705 - INFO - Scraping terminé en 23.22 secondes.
+2025-11-16 18:13:30,917 - INFO - Aperçu des données récupérées (2746 tirages au total):
+2025-11-16 18:13:31,359 - INFO - Fichier CSV 'tirages_loto.csv' créé avec succès.
+2025-11-16 18:13:31,573 - INFO - Taille du fichier CSV: 97656 octets
+2025-11-16 18:13:31,816 - INFO - Opération terminée avec succès. Données sauvegardées dans tirages_loto.csv.

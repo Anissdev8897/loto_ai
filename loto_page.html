@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loto - Prédictions Super Calculateur Quantique</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #2c3e50;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .container {
+            background: #ffffff;
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            max-width: 800px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 60px 50px;
+            animation: fadeIn 0.5s ease-in;
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            text-align: center;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        h1 {
+            color: #2c3e50;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        .subtitle {
+            color: #7f8c8d;
+            margin-bottom: 40px;
+            font-size: 1.1em;
+            font-weight: 400;
+        }
+
+        .prediction-section {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            border-radius: 15px;
+            padding: 40px 30px;
+            margin: 30px 0;
+            border-left: 5px solid #667eea;
+        }
+
+        .prediction-label {
+            font-size: 1.2em;
+            color: #495057;
+            margin-bottom: 15px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .prediction-numbers {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+            align-items: center;
+            margin: 20px 0;
+        }
+
+        .prediction-number {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.5em;
+            color: white;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            animation: popIn 0.5s ease;
+        }
+
+        .prediction-chance {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.5em;
+            color: white;
+            background: linear-gradient(135deg, #f5576c 0%, #f093fb 100%);
+            box-shadow: 0 4px 15px rgba(245, 87, 108, 0.4);
+            margin-left: 15px;
+            animation: popIn 0.5s ease;
+        }
+
+        @keyframes popIn {
+            from {
+                transform: scale(0);
+                opacity: 0;
+            }
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .chance-section {
+            margin-top: 30px;
+            padding-top: 30px;
+            border-top: 2px solid rgba(102, 126, 234, 0.2);
+        }
+
+        .chance-label {
+            font-size: 1.2em;
+            color: #495057;
+            margin-bottom: 15px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .loading-container {
+            text-align: center;
+            padding: 40px 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        .loading-text {
+            color: #7f8c8d;
+            font-size: 1.1em;
+            font-weight: 500;
+        }
+
+        .error-message {
+            background: #ffebee;
+            border-left: 4px solid #f44336;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+            color: #c62828;
+            display: none;
+        }
+
+        .error-message.show {
+            display: block;
+            animation: shake 0.5s;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+
+        .info-box {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 30px;
+            color: #1565c0;
+            font-size: 0.9em;
+            text-align: left;
+        }
+
+        .info-box strong {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 1.05em;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 40px 30px;
+            }
+
+            h1 {
+                font-size: 2em;
+            }
+
+            .prediction-number, .prediction-chance {
+                width: 60px;
+                height: 60px;
+                font-size: 1.3em;
+            }
+
+            .prediction-section {
+                padding: 30px 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎰 Loto</h1>
+        <p class="subtitle">Super Calculateur Quantique - Prédictions Automatiques</p>
+
+        <!-- Zone de chargement -->
+        <div id="loadingDiv" class="loading-container">
+            <div class="spinner"></div>
+            <p class="loading-text">Calcul quantique en cours...</p>
+        </div>
+
+        <!-- Section Prédictions -->
+        <div id="predictionsDiv" style="display: none;">
+            <div class="prediction-section">
+                <div class="prediction-label">Numéros Prédits</div>
+                <div class="prediction-numbers" id="predictionNumbers"></div>
+            </div>
+
+            <div class="chance-section">
+                <div class="chance-label">Numéro Chance</div>
+                <div id="predictionChance"></div>
+            </div>
+        </div>
+
+        <!-- Messages d'erreur -->
+        <div class="error-message" id="errorMessage"></div>
+
+        <!-- Info box -->
+        <div class="info-box">
+            <strong>ℹ️ Information</strong>
+            Ces prédictions sont générées automatiquement par notre super calculateur quantique basé sur l'analyse de milliers de tirages passés grâce à l'intelligence artificielle.
+        </div>
+    </div>
+
+    <script>
+        // Configuration de l'URL de l'API
+        function getApiBaseUrl() {
+            // Si on est sur kenopredictionia.fr en HTTPS, utiliser le même domaine
+            // Le reverse proxy doit être configuré pour router /api/* vers le port 5000
+            if ((window.location.hostname.includes('kenopredictionia') || 
+                 window.location.hostname.includes('predictionia')) &&
+                window.location.protocol === 'https:') {
+                // En HTTPS, utiliser le même domaine sans port
+                // Le reverse proxy doit gérer le routage vers Flask sur le port 5000
+                return window.location.protocol + '//' + window.location.hostname;
+            }
+            // Sinon, utiliser l'IP directe avec le protocole approprié
+            if (window.location.protocol === 'https:') {
+                // Si HTTPS mais pas sur le domaine configuré, utiliser HTTPS direct
+                return 'https://107.189.17.46:5000';
+            }
+            return 'http://107.189.17.46:5000';
+        }
+        const API_BASE_URL = getApiBaseUrl();
+
+        // Charger automatiquement les prédictions au chargement de la page
+        async function loadPredictions() {
+            const loadingDiv = document.getElementById('loadingDiv');
+            const predictionsDiv = document.getElementById('predictionsDiv');
+            const errorMessage = document.getElementById('errorMessage');
+
+            try {
+                // Appel API avec la méthode "all" pour avoir la meilleure prédiction combinée
+                const response = await fetch(`${API_BASE_URL}/api/predict`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        method: 'all',
+                        combinations: 1
+                    })
+                });
+
+                // Vérifier le statut de la réponse
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error(`Erreur HTTP ${response.status}: ${errorText}`);
+                    showError(`Erreur HTTP ${response.status}: ${response.statusText}`);
+                    return;
+                }
+
+                // Vérifier que la réponse est bien du JSON
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const errorText = await response.text();
+                    showError('Le serveur n\'a pas renvoyé de JSON. Vérifiez que le serveur Flask fonctionne.');
+                    console.error('Réponse non-JSON reçue:', errorText.substring(0, 200));
+                    return;
+                }
+
+                const data = await response.json();
+
+                if (data.success && data.prediction) {
+                    displayPredictions(data.prediction);
+                    if (loadingDiv) loadingDiv.style.display = 'none';
+                    if (predictionsDiv) predictionsDiv.style.display = 'block';
+                } else {
+                    showError(data.error || 'Erreur lors de la génération des prédictions');
+                    if (loadingDiv) loadingDiv.style.display = 'none';
+                }
+            } catch (error) {
+                showError(`Erreur de connexion: ${error.message}`);
+                console.error('Erreur prédiction:', error);
+                if (loadingDiv) loadingDiv.style.display = 'none';
+            }
+        }
+
+        // Afficher les prédictions
+        function displayPredictions(prediction) {
+            const predictionNumbersDiv = document.getElementById('predictionNumbers');
+            const predictionChanceDiv = document.getElementById('predictionChance');
+
+            // Récupérer les numéros prédits
+            let numbers = [];
+            let chanceNumber = null;
+
+            // Priorité 1: Utiliser la première combinaison si disponible
+            if (prediction.combinations && prediction.combinations.length > 0) {
+                const combo = prediction.combinations[0];
+                numbers = combo.numbers || [];
+                chanceNumber = combo.chance || null;
+            }
+            // Priorité 2: Utiliser recommended_combination
+            else if (prediction.recommended_combination && prediction.recommended_combination.length > 0) {
+                numbers = prediction.recommended_combination;
+                chanceNumber = prediction.chance_number || null;
+            }
+            // Priorité 3: Utiliser top_numbers
+            else if (prediction.top_numbers && prediction.top_numbers.length >= 5) {
+                numbers = prediction.top_numbers.slice(0, 5);
+                chanceNumber = prediction.chance_number || null;
+            }
+
+            // Afficher les numéros
+            if (predictionNumbersDiv && numbers.length > 0) {
+                predictionNumbersDiv.innerHTML = '';
+                numbers.forEach((num, index) => {
+                    const numDiv = document.createElement('div');
+                    numDiv.className = 'prediction-number';
+                    numDiv.textContent = num;
+                    numDiv.style.animationDelay = `${index * 0.1}s`;
+                    predictionNumbersDiv.appendChild(numDiv);
+                });
+            } else {
+                if (predictionNumbersDiv) {
+                    predictionNumbersDiv.innerHTML = '<p style="color: #999;">Aucun numéro disponible</p>';
+                }
+            }
+
+            // Afficher le numéro chance
+            if (predictionChanceDiv) {
+                if (chanceNumber !== null) {
+                    predictionChanceDiv.innerHTML = `<div class="prediction-chance">${chanceNumber}</div>`;
+                } else {
+                    predictionChanceDiv.innerHTML = '<p style="color: #999;">Aucun numéro chance disponible</p>';
+                }
+            }
+        }
+
+        // Gestion des erreurs
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            if (errorDiv) {
+                errorDiv.textContent = message;
+                errorDiv.classList.add('show');
+            }
+            console.error('Erreur:', message);
+        }
+
+        // Charger les prédictions automatiquement au chargement de la page
+        window.addEventListener('DOMContentLoaded', loadPredictions);
+    </script>
+</body>
+</html>
+

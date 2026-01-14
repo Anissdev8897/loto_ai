@@ -1,0 +1,66 @@
+⚡ Résumé rapide pour le Loto (adapté)
+Si tu veux faire la même chose pour le Loto français, c’est exactement pareil, en changeant le fichier et le script :
+
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\env\Scripts\Activate.ps1
+
+
+
+
+# command.txt - Commandes optimisées pour l'analyse et la prédiction du Loto Français
+
+# OBJECTIF : Utiliser les scripts optimisés pour analyser les tirages du Loto,
+#             rechercher des patterns, générer des prédictions pertinentes,
+#             et évaluer la performance des stratégies.
+
+# --- 1. Entraînement initial complet et Analyses ---
+# Cette étape est cruciale pour que le script analyse l'ensemble des données
+# historiques et entraîne les modèles de Machine Learning.
+# Elle intègre désormais l'optimisation des hyperparamètres ML et des évaluations détaillées.
+# Tu n'auras généralement pas besoin de refaire cette étape à chaque fois,
+# c'est une seule fois au début ou après une mise à jour majeure du script/des données.
+
+
+# Commande pour un entraînement complet AVEC la pondération Fibonacci inversée activée.
+# Cela permet d'entraîner le système en considérant l'influence des "numéros dus"
+# dans le calcul des scores finaux.
+python loto_main.py --csv tirages_loto.csv --output resultats_loto --all --lunar-cycle --fibonacci
+
+
+
+# --- 2. Lancer une prédiction (générer des combinaisons) ---
+# Cette commande génère des combinaisons basées sur l'analyse et les modèles entraînés.
+# Les combinaisons générées sont plus "intelligentes" grâce aux filtres améliorés
+# (somme, parité, séquences) et à la combinaison optimisée des scores.
+
+# 👉 Quand tu veux générer une prédiction (par exemple 5 combinaisons), utilise cette commande :
+# Les modèles ML (si entraînés) et la pondération Fibonacci inversée (si activée)
+# seront utilisés pour calculer les scores.
+# Le nombre de combinaisons à générer est défini par --combinations.
+# Les résultats seront sauvegardés dans le dossier 'resultats_loto'.
+
+python loto_main.py --csv tirages_loto.csv --output resultats_loto --combinations 5 --fibonacci-inverse --train-ml --visualize --excel
+
+python loto_main.py --csv tirages_loto.csv --output resultats_loto --combinations 20 --lunar-cycle --fibonacci-inverse --train-ml --visualize --excel
+
+
+# --- 3. Exécuter toutes les fonctionnalités en une seule fois ---
+# Cette commande lance l'analyse complète, l'entraînement ML, la génération de prédictions,
+# le backtesting, les visualisations et l'export Excel.
+# C'est utile pour une exécution complète après la mise à jour des scripts ou des données.
+# Par défaut, ML est activé et Fibonacci inversée est désactivée (peut être ajoutée).
+python loto_main.py --csv tirages_loto.csv --output resultats_loto --all
+
+
+# --- 4. Ajouter de nouveaux tirages et mettre à jour le modèle (Apprentissage Incrémental) ---
+# Quand tu ajoutes un nouveau tirage dans le fichier 'tirages_loto.csv',
+# exécute cette commande pour mettre à jour les modèles de manière incrémentale.
+# Cela permet aux modèles optimisés de s'adapter aux nouveaux patterns sans tout réentraîner,
+# ce qui est plus rapide et efficace.
+# Les modèles seront chargés s'ils existent, mis à jour, puis sauvegardés.
+# Des graphiques de performance de l'apprentissage incrémental seront générés.
+python loto_main.py --csv tirages_loto.csv --output resultats_loto --incremental --visualize
+
+
+# --- Exemple d'une combinaison générée (pour référence) ---
+# [3, 36, 8, 4, 22], chance 2
