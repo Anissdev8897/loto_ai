@@ -23,11 +23,21 @@ Plateforme complète d'analyse et de prédiction pour le Loto français, utilisa
 
 ## 📋 Vue d'ensemble
 
-Ce système est conçu pour maximiser les probabilités de succès en combinant plusieurs approches analytiques :
-- **IA prédictive** : Modèles entraînés sur l'historique complet des tirages.
-- **Analyse de cycles** : Détection de patterns récurrents dans le temps.
-- **Mathématiques** : Utilisation de suites de Fibonacci pour la pondération.
-- **Automatisation** : Scraping et mise à jour transparente sans intervention humaine.
+Ce système analyse l'historique des tirages du Loto français avec plusieurs approches :
+- **Modèles statistiques / ML** : Random Forest entraîné sur l'historique des tirages.
+- **Analyse de cycles** : Détection de motifs temporels.
+- **Mathématiques** : Pondération par suite de Fibonacci.
+- **Automatisation** : Scraping et mise à jour sans intervention.
+
+> ### ⚠️ Réalité statistique à lire avant tout
+> Le Loto tire **5 numéros parmi 49 + 1 Chance parmi 10** avec un tambour physique.
+> Chaque tirage est **indépendant** et les **19 068 840** combinaisons sont **strictement
+> équiprobables**. Aucune méthode (ML, Fibonacci, cycles, fréquences) ne peut *prédire*
+> un tirage ni créer un avantage : il n'y a pas de signal dans un bruit uniforme.
+> L'espérance de gain d'une grille est **négative** (RTP ≈ 40 %). Cet outil est un
+> projet d'**analyse et de pédagogie statistique**, pas une martingale.
+> Pour le vérifier vous-même avec des chiffres, voir la section
+> [Évaluation scientifique](#-évaluation-scientifique-mesurer-la-réalité).
 
 ---
 
@@ -129,6 +139,31 @@ Le système se met à jour tout seul :
   "combinations": 5
 }
 ```
+
+---
+
+## 🔬 Évaluation scientifique (mesurer la réalité)
+
+Le module `script/loto_evaluation.py` fournit l'évaluation honnête qui manquait au
+projet. Il ne « prédit » rien : il **mesure** ce que valent réellement les méthodes.
+
+```bash
+python script/loto_evaluation.py --csv tirages_loto.csv
+python script/loto_evaluation.py --csv tirages_loto.csv --mc-runs 500 --json rapport.json
+```
+
+Ce qu'il calcule :
+- **Cotes exactes** de chaque rang (calcul hypergéométrique, pas d'estimation).
+- **Espérance de gain / RTP** à partir d'une grille de gains paramétrable, et le
+  **jackpot de rentabilité** (~27 M€) qui illustre pourquoi aucun seuil réaliste ne
+  rend le jeu gagnant (partage du jackpot + variance colossale).
+- **Backtest walk-forward** de chaque stratégie (aléatoire, fréquents, retardataires,
+  récence, Fibonacci) : pour chaque tirage, la stratégie ne voit que le passé.
+- **Référence Monte-Carlo** + test de significativité : aucune stratégie ne se
+  distingue du hasard (p ≥ 0,01). C'est le résultat attendu, et pouvoir le mesurer
+  est précisément la valeur ajoutée.
+
+Tests : `python test_loto_evaluation.py` (verrouille les faits mathématiques).
 
 ---
 
