@@ -78,3 +78,4 @@ htmlcov/
 *.bak
 *_backup_*.csv
 
+test_log.txt

@@ -117,7 +117,10 @@ python train_local.py --csv tirages_loto.csv
 
 Le système se met à jour tout seul :
 - **Jours de tirage** : Lundi, Mercredi et Samedi à **23h00**.
-- **Source** : Scraping sécurisé depuis les résultats officiels.
+- **Source** : scraping d'un site tiers (non officiel) en HTTP. ⚠️ Cette source n'offre
+  aucune garantie d'intégrité ni de disponibilité ; voir le point de durcissement
+  ci-dessous. Pour une donnée fiable, utilisez la source officielle FDJ en HTTPS et
+  vérifiez la cohérence avant ingestion.
 - **Sauvegardes** : Backups automatiques du fichier `tirages_loto.csv` avant chaque mise à jour.
 - **Auto-Update** : Intégration directe dans le thread d'arrière-plan de Flask.
 

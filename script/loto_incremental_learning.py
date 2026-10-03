@@ -338,8 +338,10 @@ class LotoIncrementalLearning:
                 
             logger.info(f"Mise à jour (ré-entraînement) des modèles avec {len(training_df)} tirages.")
             start_time = time.time()
-
-            # Vérifier et convertir les dates si nécessaire
-            if 'Date' in training_df.columns:
-                # Créer une copie pour 
-(Content truncated due to size limit. Use line ranges to read in chunks)
+            # NOTE (audit C2) : la suite de update_models_with_new_data a ete perdue par
+            # une troncature de fichier. Le re-entrainement incremental est indisponible ici.
+            logger.error("update_models_with_new_data incomplet (fichier tronque).")
+            return False
+        except Exception as e:
+            logger.error(f"Erreur lors de la mise a jour des modeles: {e}", exc_info=True)
+            return False

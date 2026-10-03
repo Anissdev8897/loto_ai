@@ -21,6 +21,24 @@ current_dir = Path(__file__).parent
 script_dir = current_dir / "script"
 sys.path.insert(0, str(script_dir))
 
+# --- Configuration via variables d'environnement (audit C1/M5/M9) ---
+# Le serveur ne doit JAMAIS démarrer en mode debug en production (RCE Werkzeug).
+FLASK_DEBUG = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
+FLASK_HOST = os.getenv('HOST', '0.0.0.0')
+FLASK_PORT = int(os.getenv('PORT', '5000'))
+# Désactive par défaut la suppression/ré-entraînement automatique des modèles au boot.
+AUTO_RETRAIN_ON_VERSION_WARNING = os.getenv('AUTO_RETRAIN', 'False').lower() == 'true'
+
+# Avertissement affiché dans les réponses API : un tirage équiprobable n'est pas
+# prédictible. Aligné sur README.md et script/loto_evaluation.py.
+DISCLAIMER = (
+    "Le Loto est un jeu de hasard : les tirages sont équiprobables et indépendants. "
+    "Aucune méthode ne peut prédire un tirage ni augmenter les chances de gain. "
+    "L'espérance de gain est négative. Les numéros proposés n'ont aucune valeur "
+    "prédictive. Jeu interdit aux mineurs. Besoin d'aide ? 09 74 75 13 13 "
+    "(joueurs-info-service, appel non surtaxé)."
+)
+
 # Configuration du logging
 logging.basicConfig(
     level=logging.INFO,
@@ -52,9 +70,11 @@ ALLOWED_ORIGINS = [
     'http://www.kenopredictionia.fr'
 ]
 
-# Autoriser toutes les origines (pour le développement)
-# En production, vous pouvez restreindre avec origins=ALLOWED_ORIGINS
-CORS(app, origins="*", supports_credentials=True)
+# CORS restreint (audit M9) : jamais '*' avec supports_credentials.
+# Les origines supplémentaires peuvent être ajoutées via la variable d'env
+# EXTRA_CORS_ORIGINS (séparées par des virgules).
+_extra = [o.strip() for o in os.getenv('EXTRA_CORS_ORIGINS', '').split(',') if o.strip()]
+CORS(app, origins=ALLOWED_ORIGINS + _extra, supports_credentials=True)
 
 # Configuration Flask
 app.config['CORS_HEADERS'] = 'Content-Type'
@@ -65,17 +85,13 @@ app.config['ALLOWED_HOSTS'] = ['107.189.17.46', '0.0.0.0', '127.0.0.1', 'localho
 @app.before_request
 def log_request_info():
     """Log toutes les requêtes entrantes pour le débogage et validation IP"""
+    # Journalisation minimale (audit L3) : ne jamais logger les en-têtes bruts
+    # (Authorization/Cookie) ni le corps complet des requêtes.
     client_ip = request.remote_addr
     origin = request.headers.get('Origin', 'N/A')
-    
-    logger.info(f"Requête: {request.method} {request.path}")
-    logger.info(f"IP client: {client_ip}")
-    logger.info(f"Origin: {origin}")
-    logger.debug(f"Headers: {dict(request.headers)}")
-    logger.debug(f"Args: {dict(request.args)}")
-    if request.is_json:
-        logger.debug(f"JSON: {request.json}")
-    
+
+    logger.info(f"Requête: {request.method} {request.path} (IP: {client_ip}, Origin: {origin})")
+
     # Autoriser toutes les connexions (0.0.0.0 écoute sur toutes les interfaces)
     # La validation IP est gérée par le firewall/serveur
 
@@ -235,22 +251,51 @@ def predict_from_frequencies(num_combinations: int = 5):
         
         return jsonify({
             'success': True,
+            'disclaimer': DISCLAIMER,
             'prediction': {
                 'recommended_combination': combinations[0]['numbers'] if combinations else [],
+                'generated_combination': combinations[0]['numbers'] if combinations else [],
                 'top_numbers': top_numbers,
                 'chance_number': combinations[0]['chance'] if combinations else None,
                 'number_predictions': {num: count / len(all_numbers) for num, count in freq.items()},
                 'all_top_numbers': [num for num, _ in sorted_numbers[:10]],
                 'combinations': combinations,
-                'warning': 'Modèles ML non disponibles - Prédiction basée sur les fréquences uniquement'
+                'has_predictive_value': False,
+                'warning': 'Modèles ML non disponibles - Combinaison basée sur les fréquences passées (sans valeur prédictive)'
             }
         })
     except Exception as e:
         logger.error(f"Erreur lors de la prédiction par fréquences: {e}", exc_info=True)
         return jsonify({
             'success': False,
-            'error': str(e)
+            'error': "Une erreur interne est survenue lors de la génération."
         }), 500
+
+
+def _next_draw_date(df: pd.DataFrame):
+    """
+    Retourne la date (datetime) du prochain jour de tirage (lundi, mercredi ou
+    samedi) strictement après le dernier tirage connu. Déterministe : ne dépend
+    que des données, jamais de l'horloge (audit M11).
+    """
+    from datetime import datetime, timedelta
+    draw_weekdays = {0, 2, 5}  # lundi, mercredi, samedi
+    last = None
+    if df is not None and 'Date' in df.columns and len(df) > 0:
+        try:
+            last = pd.to_datetime(df['Date'].iloc[-1], format='%d/%m/%Y', errors='coerce')
+            last = None if pd.isna(last) else last.to_pydatetime()
+        except Exception:
+            last = None
+    if last is None:
+        # Repli déterministe : point d'ancrage fixe (évite datetime.now()).
+        last = datetime(2008, 10, 6)  # premier tirage du format 5/49 + Chance
+    d = last + timedelta(days=1)
+    for _ in range(7):
+        if d.weekday() in draw_weekdays:
+            return d
+        d += timedelta(days=1)
+    return d
 
 
 def prepare_features(df: pd.DataFrame) -> np.ndarray:
@@ -289,11 +334,11 @@ def prepare_features(df: pd.DataFrame) -> np.ndarray:
         # Features numériques (fréquences, patterns, statistiques)
         numeric_features = encoder.encode_number_features(recent_df, window_size)
         
-        # Features temporelles (pour le prochain tirage = aujourd'hui)
-        from datetime import datetime
-        today_df = pd.DataFrame([{
-            'Date': datetime.now().strftime('%d/%m/%Y')
-        }])
+        # Features temporelles DÉTERMINISTES (audit M11) : la date cible est le
+        # prochain jour de tirage dérivé du dernier tirage connu, et non
+        # datetime.now() (qui rendait la "prédiction" dépendante de l'heure de la requête).
+        target_date = _next_draw_date(recent_df)
+        today_df = pd.DataFrame([{'Date': target_date.strftime('%d/%m/%Y')}])
         temporal_features = encoder.encode_temporal_features(today_df)
         
         # Combiner les features de la même manière que lors de l'entraînement
@@ -395,17 +440,34 @@ def test():
 @app.route('/api/predict', methods=['GET', 'POST'])
 def predict():
     """API endpoint pour générer des prédictions avec différentes méthodes"""
-    logger.info(f"=== Appel API /api/predict ===")
-    logger.info(f"Méthode: {request.method}")
-    logger.info(f"Headers: {dict(request.headers)}")
+    logger.info(f"=== Appel API /api/predict ({request.method}) ===")
     try:
-        # Récupérer les paramètres de la requête
-        if request.method == 'POST':
-            method = request.json.get('method', 'all') if request.is_json else 'all'
-            num_combinations = request.json.get('combinations', 5) if request.is_json else 5
+        # Récupérer et VALIDER les paramètres de la requête (audit M7)
+        VALID_METHODS = {'all', 'ml', 'frequency', 'fibonacci', 'cycle', 'optimized'}
+        if request.method == 'POST' and request.is_json:
+            payload = request.get_json(silent=True) or {}
+            method = payload.get('method', 'all')
+            raw_combos = payload.get('combinations', 5)
         else:
             method = 'all'
-            num_combinations = 1
+            raw_combos = 1
+
+        # Valider la méthode contre une liste blanche
+        if not isinstance(method, str) or method not in VALID_METHODS:
+            return jsonify({
+                'success': False,
+                'error': f"Méthode invalide. Valeurs acceptées : {sorted(VALID_METHODS)}"
+            }), 400
+
+        # Valider le nombre de combinaisons : entier borné 1..10
+        try:
+            num_combinations = int(raw_combos)
+        except (TypeError, ValueError):
+            return jsonify({
+                'success': False,
+                'error': "Le paramètre 'combinations' doit être un entier."
+            }), 400
+        num_combinations = max(1, min(num_combinations, 10))
         if df_loto is None or df_loto.empty:
             return jsonify({
                 'success': False,
@@ -441,25 +503,23 @@ def predict():
         # prob_classe_1 est la probabilité que le numéro soit tiré
         try:
             probas_numbers = rf_number_model.predict_proba(features_scaled)
-            
-            # Convertir les probabilités en dictionnaire (comme dans loto_main.py)
+
+            # Extraire P(numéro tiré) = P(classe == 1) (audit H3).
+            # predict_proba renvoie, par sortie i, un array (n_échantillons=1, n_classes).
+            # Il faut lire la colonne correspondant à la classe 1 via estimators_[i].classes_,
+            # et non probas[i][0][0] qui est P(classe 0) = P(non tiré).
+            estimators = getattr(rf_number_model, 'estimators_', None)
             number_predictions = {}
             for i in range(MAX_NUMBER):
                 num = i + 1
-                # Vérifier si la classe existe dans le modèle
-                if i < len(probas_numbers):
-                    # Vérifier si la classe a des probabilités pour les deux classes
-                    if len(probas_numbers[i]) > 1 and len(probas_numbers[i][0]) > 1:
-                        # probas_numbers[i] est de la forme [[prob_0, prob_1]]
-                        # On prend prob_1 qui est la probabilité que le numéro soit tiré
-                        number_predictions[num] = float(probas_numbers[i][0][1])
-                    elif len(probas_numbers[i]) > 0:
-                        # Si une seule probabilité, prendre celle-là
-                        number_predictions[num] = float(probas_numbers[i][0][0])
-                    else:
-                        number_predictions[num] = 0.0
-                else:
-                    number_predictions[num] = 0.0
+                number_predictions[num] = 0.0
+                if i >= len(probas_numbers):
+                    continue
+                row = probas_numbers[i][0]  # probabilités par classe pour l'unique échantillon
+                classes = list(estimators[i].classes_) if estimators is not None else [0, 1]
+                if 1 in classes:
+                    number_predictions[num] = float(row[classes.index(1)])
+                # si la classe 1 n'a jamais été vue à l'entraînement, prob = 0.0
         except Exception as e:
             logger.warning(f"Erreur lors de l'extraction des probabilités: {e}", exc_info=True)
             # Fallback: utiliser predict pour obtenir les prédictions binaires
@@ -492,22 +552,18 @@ def predict():
                 features_scaled_chance = scaler_chance.transform(features)
                 probas_chance = rf_chance_model.predict_proba(features_scaled_chance)
                 
-                # Convertir les probabilités en dictionnaire
+                # Extraire P(chance tiré) = P(classe == 1) (audit H3), comme pour les numéros.
+                chance_estimators = getattr(rf_chance_model, 'estimators_', None)
                 chance_predictions = {}
                 for i in range(MAX_CHANCE):
                     num = i + 1
-                    # Vérifier si la classe existe dans le modèle
-                    if i < len(probas_chance):
-                        # Vérifier si la classe a des probabilités pour les deux classes
-                        if len(probas_chance[i]) > 1 and len(probas_chance[i][0]) > 1:
-                            # probas_chance[i] est de la forme [[prob_0, prob_1]]
-                            chance_predictions[num] = float(probas_chance[i][0][1])
-                        elif len(probas_chance[i]) > 0:
-                            chance_predictions[num] = float(probas_chance[i][0][0])
-                        else:
-                            chance_predictions[num] = 0.0
-                    else:
-                        chance_predictions[num] = 0.0
+                    chance_predictions[num] = 0.0
+                    if i >= len(probas_chance):
+                        continue
+                    row = probas_chance[i][0]
+                    classes = list(chance_estimators[i].classes_) if chance_estimators is not None else [0, 1]
+                    if 1 in classes:
+                        chance_predictions[num] = float(row[classes.index(1)])
                 
                 sorted_chance = sorted(chance_predictions.items(), key=lambda x: x[1], reverse=True)
                 chance_prediction = sorted_chance[0][0] if sorted_chance else None
@@ -771,25 +827,25 @@ def predict():
         
         return jsonify({
             'success': True,
+            'disclaimer': DISCLAIMER,
             'prediction': {
                 'recommended_combination': recommended_combination,
+                'generated_combination': recommended_combination,
                 'top_numbers': top_numbers[:PROPOSE_SIZE],
                 'chance_number': chance_prediction,
                 'number_predictions': number_predictions,
                 'all_top_numbers': top_numbers,
-                'combinations': combinations
+                'combinations': combinations,
+                'has_predictive_value': False
             }
         })
-        
+
     except Exception as e:
+        # Ne jamais exposer la traceback au client (audit M1). Détail loggé côté serveur.
         logger.error(f"Erreur lors de la prédiction: {e}", exc_info=True)
-        import traceback
-        error_trace = traceback.format_exc()
-        logger.error(f"Traceback: {error_trace}")
         return jsonify({
             'success': False,
-            'error': str(e),
-            'traceback': error_trace if app.debug else None
+            'error': "Une erreur interne est survenue lors de la génération."
         }), 500
 
 
@@ -809,34 +865,36 @@ def stats():
             ball_cols = [f'Numéro {i}' for i in range(1, 6)]
         ball_cols = [col for col in ball_cols if col in df_loto.columns]
         
-        # Calculer les fréquences
+        # Calculer les fréquences (cast en int Python : numpy.int64 n'est pas
+        # sérialisable en JSON par Flask — corrige un 500 sur /api/stats).
         number_counts = {}
         for num in range(1, MAX_NUMBER + 1):
             count = 0
             for col in ball_cols:
-                count += (df_loto[col] == num).sum()
+                count += int((df_loto[col] == num).sum())
             number_counts[num] = count
-        
+
         # Calculer les fréquences pour le numéro chance si disponible
         chance_counts = {}
         if 'Chance' in df_loto.columns:
             for num in range(1, MAX_CHANCE + 1):
-                chance_counts[num] = (df_loto['Chance'] == num).sum()
-        
+                chance_counts[num] = int((df_loto['Chance'] == num).sum())
+
         return jsonify({
             'success': True,
+            'disclaimer': DISCLAIMER,
             'stats': {
-                'total_draws': len(df_loto),
+                'total_draws': int(len(df_loto)),
                 'number_frequencies': number_counts,
                 'chance_frequencies': chance_counts if chance_counts else None
             }
         })
-        
+
     except Exception as e:
         logger.error(f"Erreur lors du calcul des statistiques: {e}", exc_info=True)
         return jsonify({
             'success': False,
-            'error': str(e)
+            'error': "Une erreur interne est survenue lors du calcul des statistiques."
         }), 500
 
 
@@ -973,22 +1031,27 @@ if __name__ == '__main__':
                                       or 'unpickle' in str(warning.message).lower()]
                     
                     if version_warnings:
-                        logger.warning("⚠️ Warnings de version incompatible détectés lors du test de chargement")
+                        logger.warning("⚠️ Warnings de version scikit-learn détectés lors du test de chargement")
                         for warning in version_warnings:
                             logger.warning(f"  - {warning.message}")
-                        logger.info("Réentraînement nécessaire pour éviter ces warnings")
-                        models_compatible = False
+                        # Audit M5 : un simple warning de version NE DOIT PAS déclencher
+                        # une suppression des modèles ni un ré-entraînement à chaud.
+                        # On charge les modèles tels quels ; épinglez scikit-learn.
+                        models_compatible = not AUTO_RETRAIN_ON_VERSION_WARNING
+                        if AUTO_RETRAIN_ON_VERSION_WARNING:
+                            logger.warning("AUTO_RETRAIN activé : ré-entraînement demandé explicitement.")
+                        else:
+                            logger.info("Chargement des modèles tels quels (AUTO_RETRAIN désactivé).")
                     else:
                         models_compatible = True
                         logger.info("Modèles existants détectés et compatibles")
                 except Exception as e:
-                    # Si erreur de version incompatible, on devra réentraîner
+                    # Audit M5 : ne pas ré-entraîner/supprimer automatiquement sur erreur de
+                    # version. On laisse load_models() gérer l'échec (repli fréquences).
                     error_msg = str(e).lower()
                     if 'version' in error_msg or 'inconsistent' in error_msg or 'unpickle' in error_msg:
-                        logger.warning(f"⚠️ Modèles incompatibles détectés: {e}")
-                        logger.warning("Les modèles ont été entraînés avec une version différente de scikit-learn")
-                        logger.info("Réentraînement nécessaire pour éviter les warnings")
-                        models_compatible = False
+                        logger.warning(f"⚠️ Avertissement de version lors du test de chargement: {e}")
+                        models_compatible = not AUTO_RETRAIN_ON_VERSION_WARNING
                     else:
                         # Autre erreur, on essaie quand même
                         models_compatible = True
@@ -1078,11 +1141,12 @@ if __name__ == '__main__':
     for rule in app.url_map.iter_rules():
         logger.info(f"  {rule.rule} -> {rule.endpoint} [{', '.join(rule.methods)}]")
     
-    # Démarrer l'application
-    logger.info("Serveur Flask démarré sur http://0.0.0.0:5000")
-    logger.info("Interface disponible sur http://107.189.17.46:5000")
-    logger.info("API test disponible sur http://107.189.17.46:5000/api/test")
-    logger.info("API predict disponible sur http://107.189.17.46:5000/api/predict")
-    logger.info("Connexions autorisées depuis: 107.189.17.46")
-    app.run(debug=True, host='0.0.0.0', port=5000, use_reloader=False)
+    # Démarrer l'application (audit C1 : debug piloté par l'environnement, jamais True en prod)
+    if FLASK_DEBUG:
+        logger.warning("⚠️ FLASK_DEBUG=True : le debugger Werkzeug expose une RCE. "
+                       "À n'utiliser qu'en local, jamais sur un service public.")
+    logger.info(f"Serveur Flask démarré sur http://{FLASK_HOST}:{FLASK_PORT}")
+    logger.info(f"API test : http://{FLASK_HOST}:{FLASK_PORT}/api/test")
+    logger.info(f"API predict : http://{FLASK_HOST}:{FLASK_PORT}/api/predict")
+    app.run(debug=FLASK_DEBUG, host=FLASK_HOST, port=FLASK_PORT, use_reloader=False)
 

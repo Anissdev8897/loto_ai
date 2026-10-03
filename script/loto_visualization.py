@@ -376,7 +376,12 @@ class LotoVisualization:
 
             # Création de la figure avec deux sous-graphiques
             fig, axs = plt.subplots(2, 1, figsize=(14, 12), tight_layout=True)
-            
-            # Graphique 1: Numéros principaux
-            fr
-(Content truncated due to size limit. Use line ranges to read in chunks)
+            # NOTE (audit C2) : la fin de plot_frequency_distribution a ete perdue (troncature).
+            try:
+                plt.close(fig)
+            except Exception:
+                pass
+            return None
+        except Exception as e:
+            logger.error(f"Erreur lors de la generation du graphique: {e}", exc_info=True)
+            return None
