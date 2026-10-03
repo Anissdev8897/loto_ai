@@ -319,5 +319,7 @@ class LotoAnalyzerGUI:
             ttk.Button(files_frame, text="Ouvrir Dossier Résultats", command=self.open_results_folder).grid(row=0, column=3, padx=5, pady=5, sticky=tk.W+tk.E)
 
             ttk.Button(files_frame, text="Ouvrir Rapport Backtesting", command=lambda: self.open_file(self.backtesting_report_file)).grid(row=1, column=0, padx=5, pady=5, sticky=tk.W+tk.E)
-            ttk.Button(files_frame, text="Ouvrir Graphi
-(Content truncated due to size limit. Use line ranges to read in chunks)
+            # NOTE (audit C2) : la fin de setup_results_tab a ete perdue (troncature de fichier).
+            return
+        except Exception:
+            return

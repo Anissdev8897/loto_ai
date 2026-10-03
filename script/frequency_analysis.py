@@ -338,6 +338,6 @@ def analyze_returns(df: pd.DataFrame, number_cols: List[str], chance_col: Option
             "chance_returns_stats": {}
         }
 
-def calculate_adaptive_weights(df: pd.DataFrame, number_cols: List[str], chance_col: Optional[str] = None,
-             
-(Content truncated due to size limit. Use line ranges to read in chunks)
+# NOTE (audit C2) : la fonction calculate_adaptive_weights, laissee incomplete par un
+# marqueur de troncature ecrit dans le fichier, a ete retiree. Elle n'etait importee
+# nulle part (le fibonacci_weighting.calculate_adaptive_weights est une autre fonction).

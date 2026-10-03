@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Loto - Prédictions Super Calculateur Quantique</title>
+    <title>Loto - Générateur de combinaisons (analyse statistique)</title>
     <style>
         * {
             margin: 0;
@@ -208,6 +208,23 @@
             font-size: 1.05em;
         }
 
+        .warning-box {
+            background: #fff3e0;
+            border-left: 4px solid #e65100;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            color: #bf360c;
+            font-size: 0.9em;
+            text-align: left;
+        }
+
+        .warning-box strong {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 1.05em;
+        }
+
         @media (max-width: 768px) {
             .container {
                 padding: 40px 30px;
@@ -232,18 +249,18 @@
 <body>
     <div class="container">
         <h1>🎰 Loto</h1>
-        <p class="subtitle">Super Calculateur Quantique - Prédictions Automatiques</p>
+        <p class="subtitle">Générateur de combinaisons &mdash; analyse statistique des tirages passés</p>
 
         <!-- Zone de chargement -->
         <div id="loadingDiv" class="loading-container">
             <div class="spinner"></div>
-            <p class="loading-text">Calcul quantique en cours...</p>
+            <p class="loading-text">Génération de la combinaison...</p>
         </div>
 
         <!-- Section Prédictions -->
         <div id="predictionsDiv" style="display: none;">
             <div class="prediction-section">
-                <div class="prediction-label">Numéros Prédits</div>
+                <div class="prediction-label">Combinaison générée (aucune valeur prédictive)</div>
                 <div class="prediction-numbers" id="predictionNumbers"></div>
             </div>
 
@@ -258,8 +275,24 @@
 
         <!-- Info box -->
         <div class="info-box">
-            <strong>ℹ️ Information</strong>
-            Ces prédictions sont générées automatiquement par notre super calculateur quantique basé sur l'analyse de milliers de tirages passés grâce à l'intelligence artificielle.
+            <strong>ℹ️ Comment ça marche</strong>
+            Cet outil génère une combinaison à partir d'une analyse statistique des tirages
+            passés (fréquences). Il ne s'agit pas d'un « calculateur quantique » et il n'y a
+            aucune intelligence artificielle capable de prédire un tirage.
+        </div>
+
+        <!-- Avertissement (jeu responsable) -->
+        <div class="warning-box">
+            <strong>⚠️ À lire avant de jouer</strong>
+            Le Loto est un jeu de hasard&nbsp;: les tirages sont <strong>équiprobables et
+            indépendants</strong>. Aucune méthode, statistique ou «&nbsp;IA&nbsp;», ne peut
+            prédire un tirage ni augmenter vos chances. Les numéros affichés n'ont
+            <strong>aucune valeur prédictive</strong> et l'espérance de gain est
+            <strong>négative</strong> (environ 40&nbsp;% de taux de retour).<br><br>
+            Jeu interdit aux mineurs (18&nbsp;ans). Jouer comporte des risques&nbsp;:
+            endettement, isolement, dépendance. Besoin d'aide&nbsp;?
+            <strong>09&nbsp;74&nbsp;75&nbsp;13&nbsp;13</strong> (Joueurs Info Service, appel
+            non surtaxé). Autorité de régulation&nbsp;: ANJ.
         </div>
     </div>
 

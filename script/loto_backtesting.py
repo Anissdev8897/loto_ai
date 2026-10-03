@@ -352,5 +352,15 @@ class LotoBacktesting:
                         predicted_combinations = temp_analyzer.generate_multiple_combinations(
                             count=self.config.get("combinations_to_generate", 5)
                         )
-                    
-(Content truncated due to size limit. Use line ranges to read in chunks)
+                    except Exception as e:
+                        logger.error(f"Erreur lors de la generation des predictions: {e}", exc_info=True)
+                        continue
+
+            # NOTE (audit C2) : la suite de run_backtesting (scoring/agregation) a ete
+            # perdue par une troncature de fichier. Utilisez script/loto_evaluation.py
+            # (walk-forward + Monte-Carlo) comme evaluateur de reference.
+            logger.error("run_backtesting incomplet (fichier tronque) : voir script/loto_evaluation.py")
+            return None
+        except Exception as e:
+            logger.error(f"Erreur lors du backtesting: {e}", exc_info=True)
+            return None
